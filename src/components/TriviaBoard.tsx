@@ -1,4 +1,4 @@
-import { Check, Lightbulb, Trophy, X } from 'lucide-react'
+import { ArrowRight, Check, Lightbulb, Trophy, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { GoalData, GoalHints, QuestionData } from '../types/game'
 
@@ -7,6 +7,8 @@ interface TriviaBoardProps {
   hints?: GoalHints
   /** Se llama una sola vez al terminar las 3 preguntas, con el puntaje final (0 a 9). */
   onComplete: (score: number) => void
+  /** Si se pasa, muestro el botón "Siguiente Gol" en la pantalla final. */
+  onNextGoal?: () => void
 }
 
 // Puntos que vale cada pregunta correcta (3 preguntas x 3 = 9 puntos) y lo que cuesta ver la pista.
@@ -21,7 +23,12 @@ function formatHints(hints: GoalHints): string {
   return [date, minute].filter(Boolean).join(' · ')
 }
 
-export default function TriviaBoard({ questions, hints, onComplete }: TriviaBoardProps) {
+export default function TriviaBoard({
+  questions,
+  hints,
+  onComplete,
+  onNextGoal,
+}: TriviaBoardProps) {
   // Aquí armo la lista en el orden en que se preguntan: jugador, rival y torneo.
   const list: QuestionData[] = [questions.player, questions.opponent, questions.tournament]
 
@@ -76,6 +83,15 @@ export default function TriviaBoard({ questions, hints, onComplete }: TriviaBoar
         </p>
         {hintUsed && (
           <p className="text-sm text-slate-400">Incluye -{HINT_PENALTY} punto por usar la pista.</p>
+        )}
+        {onNextGoal && (
+          <button
+            onClick={onNextGoal}
+            className="mt-2 flex items-center gap-2 rounded-full bg-indigo-500 px-4 py-2 font-semibold hover:bg-indigo-400"
+          >
+            Siguiente Gol
+            <ArrowRight className="size-4" />
+          </button>
         )}
       </section>
     )

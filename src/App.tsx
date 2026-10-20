@@ -2,93 +2,21 @@ import { Pause, Play, RotateCcw } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import ChalkboardCanvas from './components/ChalkboardCanvas'
 import TriviaBoard from './components/TriviaBoard'
-import type { GoalAnimationData, GoalData } from './types/game'
-
-// Gol de ejemplo: ataque hacia el arco derecho (x = 1), con asistencia, rivales y colores de equipo.
-const demoGoal: GoalAnimationData = {
-  id: 'demo-1',
-  title: 'Gol de ejemplo',
-  duration: 6,
-  pitch: { width: 105, height: 68 },
-  ball: [
-    { t: 0, x: 0.45, y: 0.7 },
-    { t: 1.5, x: 0.6, y: 0.8 },
-    { t: 3, x: 0.78, y: 0.6 },
-    { t: 4.2, x: 0.86, y: 0.45 },
-    { t: 5, x: 0.99, y: 0.5 },
-    { t: 6, x: 1, y: 0.5 },
-  ],
-  players: {
-    // Celeste para el goleador y su compañero; rojo para los rivales.
-    scorer: {
-      teamColor: '#75aadb',
-      track: [
-        { t: 0, x: 0.6, y: 0.4 },
-        { t: 3, x: 0.78, y: 0.45 },
-        { t: 4.2, x: 0.86, y: 0.45 },
-        { t: 6, x: 0.9, y: 0.5 },
-      ],
-    },
-    assister: {
-      teamColor: '#75aadb',
-      track: [
-        { t: 0, x: 0.45, y: 0.7 },
-        { t: 3, x: 0.7, y: 0.65 },
-        { t: 6, x: 0.8, y: 0.6 },
-      ],
-    },
-    others: [
-      {
-        id: 'rival-1',
-        teamColor: '#d62828',
-        track: [
-          { t: 0, x: 0.7, y: 0.6 },
-          { t: 6, x: 0.82, y: 0.5 },
-        ],
-      },
-      {
-        id: 'rival-2',
-        teamColor: '#d62828',
-        track: [
-          { t: 0, x: 0.85, y: 0.3 },
-          { t: 6, x: 0.9, y: 0.4 },
-        ],
-      },
-    ],
-  },
-  // Pistas ficticias para la trivia.
-  hints: { year: 2019, month: 'Marzo', minute: 67 },
-}
-
-// Preguntas ficticias de prueba.
-const demoQuestions: GoalData['questions'] = {
-  player: {
-    id: 'q-player',
-    prompt: '¿Quién marcó el gol?',
-    options: ['Jugador A', 'Jugador B', 'Jugador C', 'Jugador D'],
-    correctIndex: 1,
-  },
-  opponent: {
-    id: 'q-opponent',
-    prompt: '¿Contra qué rival se marcó?',
-    options: ['Rival A', 'Rival B', 'Rival C', 'Rival D'],
-    correctIndex: 2,
-  },
-  tournament: {
-    id: 'q-tournament',
-    prompt: '¿En qué torneo fue el gol?',
-    options: ['Torneo A', 'Torneo B', 'Torneo C', 'Torneo D'],
-    correctIndex: 0,
-  },
-}
+import { goalsList } from './data/goals'
 
 function App() {
+  // Aquí guardo cuál gol de la lista estoy mostrando; todo lo demás se deriva de este índice.
+  const [currentGoalIndex, setCurrentGoalIndex] = useState(0)
   const [time, setTime] = useState(0)
   const [playing, setPlaying] = useState(false)
   // Cambio esta clave al reiniciar para que React desmonte y vuelva a montar la trivia desde cero.
   const [triviaKey, setTriviaKey] = useState(0)
   const [score, setScore] = useState<number | null>(null)
   const lastFrame = useRef(0)
+
+  const goal = goalsList[currentGoalIndex]
+  const { animation } = goal
+  const hasNextGoal = currentGoalIndex < goalsList.length - 1
 
   // Avanzo el tiempo con requestAnimationFrame mientras esté reproduciendo.
   useEffect(() => {
@@ -99,18 +27,18 @@ function App() {
       lastFrame.current = now
       setTime((t) => {
         const next = t + dt
-        if (next >= demoGoal.duration) {
+        if (next >= animation.duration) {
           setPlaying(false)
-          return demoGoal.duration
+          return animation.duration
         }
         return next
       })
       id = requestAnimationFrame(tick)
     })
     return () => cancelAnimationFrame(id)
-  }, [playing])
+  }, [playing, animation.duration])
 
-  const finished = time >= demoGoal.duration
+  const finished = time >= animation.duration
 
   const reset = () => {
     setPlaying(false)
@@ -129,13 +57,21 @@ function App() {
     setPlaying((p) => !p)
   }
 
+  // Paso al siguiente gol: reinicio el estado, oculto la trivia (time vuelve a 0) y lo reproduzco de una vez.
+  const nextGoal = () => {
+    if (!hasNextGoal) return
+    setCurrentGoalIndex((i) => i + 1)
+    reset()
+    setPlaying(true)
+  }
+
   return (
     <main className="mx-auto flex min-h-screen max-w-4xl flex-col gap-4 bg-slate-950 p-4 text-slate-100">
       <h1 className="text-2xl font-bold">¿Quién lo hizo?</h1>
 
       {/* Al terminar la jugada oscurezco un poco la pizarra con una capa encima del canvas. */}
       <div className="relative">
-        <ChalkboardCanvas animationData={demoGoal} currentTime={time} isPlaying={playing} />
+        <ChalkboardCanvas animationData={animation} currentTime={time} isPlaying={playing} />
         <div
           className={`pointer-events-none absolute inset-0 rounded-xl bg-black/45 transition-opacity duration-500 ${
             finished ? 'opacity-100' : 'opacity-0'
@@ -161,7 +97,7 @@ function App() {
         <input
           type="range"
           min={0}
-          max={demoGoal.duration}
+          max={animation.duration}
           step={0.01}
           value={time}
           onChange={(e) => {
@@ -176,10 +112,11 @@ function App() {
 
       {finished && (
         <TriviaBoard
-          key={triviaKey}
-          questions={demoQuestions}
-          hints={demoGoal.hints}
+          key={`${animation.id}-${triviaKey}`}
+          questions={goal.questions}
+          hints={animation.hints}
           onComplete={setScore}
+          onNextGoal={hasNextGoal ? nextGoal : undefined}
         />
       )}
       {score !== null && <p className="sr-only">Puntaje final: {score}</p>}
